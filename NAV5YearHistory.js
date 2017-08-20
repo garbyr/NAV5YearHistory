@@ -38,7 +38,7 @@ mainProcess = function (context, input, requestUUID, ISIN, NAV, sequence, catego
         },
         ExpressionAttributeValues: {
             ':hk_val': { "S": ISIN },
-            ':rk_val': { "N": sequenceFloor.toString() },
+            ':rk_val': { "S": sequenceFloor.toString() },
         }
     };
 
@@ -57,7 +57,7 @@ mainProcess = function (context, input, requestUUID, ISIN, NAV, sequence, catego
             var navArray = data.Items;
             //check if NAVArray should be adjusted to add new
             if (NAV) {
-                navArray = augmentNavArray(navArray, sequence, NAV);
+                navArray = augmentNAVArray(navArray, sequence, NAV);
             }
             //publish to SNS
             var response = {
