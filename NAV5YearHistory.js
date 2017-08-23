@@ -13,11 +13,11 @@ exports.handler = (event, context, callback) => {
     var dateTime = new Date().toUTCString();
     functionName = context.functionName;
     //execute function 
-    mainProcess(context, event, event.requestUUID, event.ISIN, event.NAV, event.sequence, event.category, event.frequency, event.description, event.user, callback);
+    mainProcess(context, event, event.requestUUID, event.ISIN, event.sequence, event.category, event.frequency, event.user, callback);
 }
 
 
-mainProcess = function (context, input, requestUUID, ISIN, NAV, sequence, category, frequency, description, user, callback) {
+mainProcess = function (context, input, requestUUID, ISIN, sequence, category, frequency, user, callback) {
     //write to the database
     var dynamo = new aws.DynamoDB();
     var sequenceFloor = (parseInt(sequence) - 500);
@@ -28,6 +28,7 @@ mainProcess = function (context, input, requestUUID, ISIN, NAV, sequence, catego
     console.log("sequence floor " + sequenceFloor);
     var params = {
         TableName: 'NAVHistory',
+        ConsistentRead: true,
         // IndexName: 'index_name', // optional (if querying an index)
 
         // Expression to filter on indexed attributes
@@ -47,26 +48,20 @@ mainProcess = function (context, input, requestUUID, ISIN, NAV, sequence, catego
         if (err) {
             console.log("ERROR", err);
             error = true;
-            errorMessage.push("failed to retrieve NAV history - calculation aborted");
-            console.log("ERROR: failed to retrieve NAV history.  Calculation request aborted");
+            errorMessage.push("failed to retrieve 5 year history");
+            console.log("ERROR: failed to retrieve 5 year history");
             raiseError(ISIN, sequence, requestUUID, user, callback);
         }
         else {
             console.log("SUCCESS", data);
-            //sort out the array
+            //build response message
             var navArray = data.Items;
-            //check if NAVArray should be adjusted to add new
-            if (NAV) {
-                navArray = augmentNAVArray(navArray, sequence, NAV);
-            }
-            //publish to SNS
             var response = {
                 requestUUID: requestUUID,
                 ISIN: ISIN,
                 sequence: sequence,
                 category: category,
                 frequency: frequency,
-                description: description,
                 user: user,
                 navArray: navArray
             };
@@ -115,11 +110,3 @@ getExpectedLastSequence = function (sequence) {
     return expectedLastSequence;
 }
 
-augmentNAVArray = function (navArray, sequence, NAV) {
-    var expectedLastSequence = getExpectedLastSequence(sequence);
-    console.log("INFO: sequence In: " + sequence);
-    console.log("INFO: last sequence on database: " + navArray[(navArray.length - 1)]);
-    console.log("INFO: expected last sequence: " + expectedLastSequence);
-    //do the check and augmentation :-)     
-    return navArray;
-}
